@@ -1,0 +1,52 @@
+name: Test and Deploy
+
+on: [push, pull_request]
+
+env:
+  DOCKER_USERNAME: tobiaszimmer
+  ROCKET_ADDRESS: 0.0.0.0 # This may be needed if integration tests hit the api
+
+jobs:
+  test-and-deploy:
+    name: Test and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup rust
+        uses: actions-rs/toolchain@v1
+
+      - name: Run unit tests
+        run: cargo test
+
+      - name: Setup variables
+        if: github.ref == 'refs/heads/main'
+        run: |
+          lower_case_image=$(echo $IMAGE_NAME | awk '{print tolower($0)}')
+          echo "LOWER_CASE_IMAGE=$lower_case_image" >> $GITHUB_ENV
+        env:
+          IMAGE_NAME: ${{ env.DOCKER_USERNAME }}/${{ github.event.repository.name }}
+
+      - name: Deploy to dockerhub
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login --username $DOCKER_USERNAME --password-stdin
+          version=$(cat Cargo.toml | grep version | head -n 1 | tr 'version = "' " " | xargs | awk '{print tolower($0)}')
+          image="$LOWER_CASE_IMAGE:$version"
+          docker build --tag "$image" .
+          docker push "$image"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push README to Dockerhub
+        if: github.ref == 'refs/heads/main'
+        uses: christian-korneck/update-container-description-action@v1
+        env:
+          DOCKER_USER: ${{ env.DOCKER_USERNAME }}
+          DOCKER_PASS: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          destination_container_repo: ${{ env.LOWER_CASE_IMAGE }}
+          provider: dockerhub
+          short_description: Includes a built binary of the CI runner
+          readme_file: "DOCKER_README.md"
