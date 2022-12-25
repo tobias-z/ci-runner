@@ -23,7 +23,7 @@ fn main() {
         panic!("{}", err);
     }
     let configuration = configuration.unwrap();
-    if config::is_valid_config(&configuration) {
+    if configuration.is_valid_config() {
         job::run_all_jobs(&configuration);
     }
 }
