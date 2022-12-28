@@ -4,6 +4,7 @@ pub mod config;
 pub mod constants;
 pub mod runtime;
 pub mod types;
+pub mod validators;
 
 // CI Runner is run in a directory
 // 1. Check if we have a ci file
@@ -19,11 +20,9 @@ pub mod types;
 fn main() {
     let configuration = config::load_config();
     if let Err(err) = configuration {
-        println!("There was an error in your ci configuration");
-        panic!("{}", err);
+        panic!("There was an error in your ci configuration:\n{}", err);
     }
-    let configuration = configuration.unwrap();
-    if configuration.is_valid_config() {
-        job::run_all_jobs(&configuration);
+    if let Some(validated_config) = validators::validate_config(configuration.unwrap()) {
+        job::run_all_jobs(validated_config);
     }
 }

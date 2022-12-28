@@ -7,18 +7,10 @@ use crate::{constants, types::CIError};
 #[derive(Deserialize)]
 pub struct Config {
     pub version: f32,
-    pub something: Option<String>,
-}
-
-impl Config {
-    pub fn is_valid_config(&self) -> bool {
-        let something = self.something.unwrap();
-        true
-    }
 }
 
 pub fn load_config() -> Result<Config, CIError> {
-    let ci_file = fs::read_to_string(constants::WORKSPACE_DIR);
+    let ci_file = fs::read_to_string(format!("{}/ci-file.yaml", constants::WORKSPACE_DIR));
     if let Err(_) = ci_file {
         return Err(Box::from(format!(
             "unable to find CI file in the directory: {}",
@@ -54,6 +46,15 @@ mod test {
     fn given_incorrect_format_mapping_will_fail() {
         let incorrect_config = "
             something-wrong: 0.1
+        ";
+        let config = map_to_config(incorrect_config.to_string());
+        assert!(config.is_err());
+    }
+
+    #[test]
+    fn given_incorrect_type_will_fail() {
+        let incorrect_config = "
+            version: something
         ";
         let config = map_to_config(incorrect_config.to_string());
         assert!(config.is_err());
